@@ -159,7 +159,17 @@ const axios = require("axios");
 
 // ✅ Firebase Access Token Helper
 const { GoogleAuth } = require("google-auth-library");
-const serviceAccount = require(process.env.GOOGLE_APPLICATION_CREDENTIALS);
+let serviceAccount;
+if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+  try {
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+  } catch (e) {
+    console.error("❌ Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON env var");
+    serviceAccount = require(process.env.GOOGLE_APPLICATION_CREDENTIALS || "./firebase-service-account.json");
+  }
+} else {
+  serviceAccount = require(process.env.GOOGLE_APPLICATION_CREDENTIALS || "./firebase-service-account.json");
+}
 
 admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 const googleAuth = new GoogleAuth({
