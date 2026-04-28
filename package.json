@@ -25,6 +25,7 @@
     "livekit-server-sdk": "^2.15.0",
     "node-fetch": "^3.3.2",
     "openai": "^6.9.0",
+    "pg": "^8.20.0",
     "stripe": "^18.5.0",
     "twilio": "^5.10.2",
     "uuid": "^13.0.0",
