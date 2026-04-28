@@ -123,7 +123,7 @@ function pcm16ToMulawBase64(pcm16Buffer) {
 
 
 
-const {Translate} = require('@google-cloud/translate').v2;
+const { Translate } = require('@google-cloud/translate').v2;
 const textToSpeech = require('@google-cloud/text-to-speech');
 
 // create clients (one-time)
@@ -193,14 +193,14 @@ async function sendFcmNotification(token, data) {
     return res.data;
   } catch (err) {
     console.error("❌ sendFcmNotification failed:");
-     if (err.response?.status === 404) {
-    console.log("⚠️ Removing invalid FCM token");
+    if (err.response?.status === 404) {
+      console.log("⚠️ Removing invalid FCM token");
 
-    await pg.query(
-      "DELETE FROM fcm_registry WHERE fcm_token=$1",
-      [token]
-    );
-  }
+      await pg.query(
+        "DELETE FROM fcm_registry WHERE fcm_token=$1",
+        [token]
+      );
+    }
     console.error("Status:", err.response?.status);
     console.error("Data:", err.response?.data);
     console.error("Message:", err.message);
@@ -431,23 +431,23 @@ app.post("/auth/logout", async (req, res) => {
 // ================= CHAT SEND =================
 app.post("/chat/send", async (req, res) => {
   try {
-  const { messageId, from, to, original } = req.body;
+    const { messageId, from, to, original } = req.body;
 
-const decryptedText = original;
+    const decryptedText = original;
 
-if (!messageId || !from || !to || !original) {
-  return res.status(400).json({ ok: false, error: "Missing fields" });
-}
-console.log("📩 CHAT SEND:", messageId, from, "→", to);
+    if (!messageId || !from || !to || !original) {
+      return res.status(400).json({ ok: false, error: "Missing fields" });
+    }
+    console.log("📩 CHAT SEND:", messageId, from, "→", to);
 
     // 1) Save to DB
-  await pg.query(
-  `INSERT INTO chat_messages
+    await pg.query(
+      `INSERT INTO chat_messages
    (id, from_identity, to_identity, original_text,created_at)
    VALUES ($1,$2,$3,$4,NOW())
    ON CONFLICT (id) DO NOTHING`,
-  [messageId, from, to, encryptMessage(original)]
-);
+      [messageId, from, to, encryptMessage(original)]
+    );
 
 
     // 2) Send FCM to receiver
@@ -456,30 +456,30 @@ console.log("📩 CHAT SEND:", messageId, from, "→", to);
       [to]
     );
 
-   let delivered = false;
+    let delivered = false;
 
-if (rows.length > 0) {
-  try {
+    if (rows.length > 0) {
+      try {
 
-    await sendFcmNotification(rows[0].fcm_token, {
-      type: "CHAT_MESSAGE",
-      sender: from,
-      messageId: messageId,
-      original: original
-    });
+        await sendFcmNotification(rows[0].fcm_token, {
+          type: "CHAT_MESSAGE",
+          sender: from,
+          messageId: messageId,
+          original: original
+        });
 
-    console.log("✅ FCM SENT:", messageId);
-    delivered = true;
+        console.log("✅ FCM SENT:", messageId);
+        delivered = true;
 
-  } catch (e) {
+      } catch (e) {
 
-    console.log("❌ FCM FAILED:", messageId, e.message);
-    delivered = false;
+        console.log("❌ FCM FAILED:", messageId, e.message);
+        delivered = false;
 
-  }
-}
+      }
+    }
 
-  res.json({ ok: true, delivered });
+    res.json({ ok: true, delivered });
   } catch (err) {
     console.error("❌ /chat/send error:", err.message);
     res.status(500).json({ ok: false, error: err.message });
@@ -493,7 +493,7 @@ app.post("/chat/delivered", async (req, res) => {
     const { messageId } = req.body;
 
     if (!messageId)
-      return res.status(400).json({ ok:false });
+      return res.status(400).json({ ok: false });
 
     const { rows } = await pg.query(
       "SELECT from_identity FROM chat_messages WHERE id=$1 LIMIT 1",
@@ -501,7 +501,7 @@ app.post("/chat/delivered", async (req, res) => {
     );
 
     if (!rows.length)
-      return res.json({ ok:true });
+      return res.json({ ok: true });
 
     const sender = rows[0].from_identity;
 
@@ -519,24 +519,24 @@ app.post("/chat/delivered", async (req, res) => {
 
     }
 
-    res.json({ ok:true });
+    res.json({ ok: true });
 
-  } catch(err) {
+  } catch (err) {
     console.error("❌ delivered error", err);
-    res.status(500).json({ ok:false });
+    res.status(500).json({ ok: false });
   }
 });
 
 
 // ================= MESSAGE READ =================
-app.post("/chat/read", async (req,res)=>{
+app.post("/chat/read", async (req, res) => {
 
-  try{
+  try {
 
     const { messageId } = req.body;
 
-    if(!messageId){
-      return res.status(400).json({ok:false});
+    if (!messageId) {
+      return res.status(400).json({ ok: false });
     }
 
     // 🔥 get sender of that message
@@ -545,8 +545,8 @@ app.post("/chat/read", async (req,res)=>{
       [messageId]
     );
 
-    if(!rows.length){
-      return res.json({ok:true});
+    if (!rows.length) {
+      return res.json({ ok: true });
     }
 
     const sender = rows[0].from_identity;
@@ -556,19 +556,19 @@ app.post("/chat/read", async (req,res)=>{
       [sender]
     );
 
-    if(tokenRows.length){
+    if (tokenRows.length) {
 
-      await sendFcmNotification(tokenRows[0].fcm_token,{
-        type:"MESSAGE_READ",
+      await sendFcmNotification(tokenRows[0].fcm_token, {
+        type: "MESSAGE_READ",
         messageId: messageId   // ✅ IMPORTANT
       });
 
     }
 
-    res.json({ok:true});
+    res.json({ ok: true });
 
-  }catch(e){
-    res.status(500).json({ok:false});
+  } catch (e) {
+    res.status(500).json({ ok: false });
   }
 
 });
@@ -578,7 +578,7 @@ app.post("/chat/translate", async (req, res) => {
   try {
     const { text, targetLang } = req.body;
 
-const decryptedText = text;
+    const decryptedText = text;
 
     if (!text || !targetLang) {
       return res.status(400).json({ ok: false, error: "Missing fields" });
@@ -593,10 +593,10 @@ const decryptedText = text;
       console.error("❌ Chat translate error:", err.message);
     }
 
-   res.json({
-  ok: true,
- translated: translated
-});
+    res.json({
+      ok: true,
+      translated: translated
+    });
 
   } catch (err) {
     console.error("❌ /chat/translate error:", err.message);
@@ -694,7 +694,7 @@ app.get("/chat/history", async (req, res) => {
     const identity = canonicalIdentity(req.query.identity);
 
     if (!identity)
-      return res.status(400).json({ ok:false });
+      return res.status(400).json({ ok: false });
 
     const { rows } = await pg.query(
       `
@@ -716,30 +716,30 @@ ORDER BY created_at ASC;
       [identity]
     );
 
-   const cleanRows = rows.map(r => {
+    const cleanRows = rows.map(r => {
 
-  let text = r.original_text;
+      let text = r.original_text;
 
-  try {
-    text = decryptMessage(text);
-  } catch (e) {
-    // already plain text → ignore
-  }
+      try {
+        text = decryptMessage(text);
+      } catch (e) {
+        // already plain text → ignore
+      }
 
-  return {
-    id: r.id,
-    from_identity: r.from_identity,
-    to_identity: r.to_identity,
-    original_text: text,
-    timestamp: new Date(r.created_at).getTime()
-  };
-});
+      return {
+        id: r.id,
+        from_identity: r.from_identity,
+        to_identity: r.to_identity,
+        original_text: text,
+        timestamp: new Date(r.created_at).getTime()
+      };
+    });
 
-res.json({ ok:true, messages: cleanRows });
+    res.json({ ok: true, messages: cleanRows });
 
   } catch (err) {
     console.error("chat history error", err);
-    res.status(500).json({ ok:false });
+    res.status(500).json({ ok: false });
   }
 });
 
@@ -749,12 +749,12 @@ app.post("/chat/delete", async (req, res) => {
 
     const { messageId } = req.body;
 
-   await pg.query(
-`INSERT INTO deleted_messages(message_id)
+    await pg.query(
+      `INSERT INTO deleted_messages(message_id)
  VALUES($1)
  ON CONFLICT DO NOTHING`,
-[messageId]
-);
+      [messageId]
+    );
 
     res.json({ ok: true });
 
@@ -915,23 +915,23 @@ app.post("/video-invite", async (req, res) => {
   try {
     let { fromIdentity, toIdentity } = req.body;
 
-    
+
     if (!fromIdentity || !toIdentity) {
       return res.status(400).json({ error: "Missing fromIdentity or toIdentity" });
     }
     // ✅ Normalize identities first
-const fromDigits = canonicalIdentity(fromIdentity);
-const toDigits   = canonicalIdentity(toIdentity);
+    const fromDigits = canonicalIdentity(fromIdentity);
+    const toDigits = canonicalIdentity(toIdentity);
 
-// ✅ CHECK IF USER EXISTS (REGISTERED)
-const checkUser = await pg.query(
-  "SELECT 1 FROM fcm_registry WHERE identity=$1 LIMIT 1",
-  [toDigits]
-);
+    // ✅ CHECK IF USER EXISTS (REGISTERED)
+    const checkUser = await pg.query(
+      "SELECT 1 FROM fcm_registry WHERE identity=$1 LIMIT 1",
+      [toDigits]
+    );
 
-if (checkUser.rows.length === 0) {
-  return res.json({ status: "not_registered" });
-}
+    if (checkUser.rows.length === 0) {
+      return res.json({ status: "not_registered" });
+    }
 
     fromIdentity = normalizePhone(fromIdentity) || fromIdentity;
     toIdentity = normalizePhone(toIdentity);
@@ -986,13 +986,13 @@ if (checkUser.rows.length === 0) {
       console.log(`⚠️ No FCM token found for ${toIdentity}, skipping push`);
     }
 
-// 🔥 Save call history (VIDEO)
-await pg.query(
-  `INSERT INTO call_history
+    // 🔥 Save call history (VIDEO)
+    await pg.query(
+      `INSERT INTO call_history
    (id, caller_identity, callee_identity, call_type)
    VALUES ($1,$2,$3,$4)`,
-  [uuidv4(), fromDigits, toDigits, "VIDEO"]
-);
+      [uuidv4(), fromDigits, toDigits, "VIDEO"]
+    );
 
     res.json({
       ok: true,
@@ -1028,16 +1028,16 @@ async function getUserPrefs(identity) {
 
 app.all("/twiml/voice", async (req, res) => {
   const from = canonicalIdentity(req.query.from || req.body.From);
-  const to   = canonicalIdentity(req.query.to || req.body.To);
+  const to = canonicalIdentity(req.query.to || req.body.To);
 
-const fromPrefs = await getUserPrefs(from);
-const toPrefs   = await getUserPrefs(to);
+  const fromPrefs = await getUserPrefs(from);
+  const toPrefs = await getUserPrefs(to);
 
-const fromLang = fromPrefs.preferred_lang;
-const toLang   = toPrefs.preferred_lang;
+  const fromLang = fromPrefs.preferred_lang;
+  const toLang = toPrefs.preferred_lang;
 
-const fromGender = fromPrefs.voice_gender;
-const toGender   = toPrefs.voice_gender;
+  const fromGender = fromPrefs.voice_gender;
+  const toGender = toPrefs.voice_gender;
 
 
 
@@ -1049,24 +1049,24 @@ const toGender   = toPrefs.voice_gender;
     url: `${BASE_URL.replace("https", "wss")}/twilio-media`
   });
 
-await pg.query(`
+  await pg.query(`
 UPDATE active_calls
 SET status='RINGING'
 WHERE caller_identity=$1
 AND callee_identity=$2
-`,[to,from])
+`, [to, from])
 
   stream.parameter({ name: "from", value: from });
   stream.parameter({ name: "to", value: to });
   stream.parameter({ name: "speakLang", value: fromLang });
   stream.parameter({ name: "listenLang", value: toLang });
-stream.parameter({ name: "speakGender", value: fromGender });
-stream.parameter({ name: "listenGender", value: toGender });
+  stream.parameter({ name: "speakGender", value: fromGender });
+  stream.parameter({ name: "listenGender", value: toGender });
   twiml.pause({ length: 600 });
   res.type("text/xml").send(twiml.toString());
   console.log(
-  `📞 TWIML LANG | from=${from} speak=${fromLang} | to=${to} listen=${toLang}`
-);
+    `📞 TWIML LANG | from=${from} speak=${fromLang} | to=${to} listen=${toLang}`
+  );
 
 });
 
@@ -1103,18 +1103,18 @@ app.post("/call-user", async (req, res) => {
     const fromDigits = canonicalIdentity(fromIdentity);
     const toDigits = canonicalIdentity(toIdentity);
 
-// ✅ CHECK IF USER EXISTS (REGISTERED)
-const checkUser = await pg.query(
-  "SELECT 1 FROM fcm_registry WHERE identity=$1 LIMIT 1",
-  [toDigits]
-);
+    // ✅ CHECK IF USER EXISTS (REGISTERED)
+    const checkUser = await pg.query(
+      "SELECT 1 FROM fcm_registry WHERE identity=$1 LIMIT 1",
+      [toDigits]
+    );
 
-if (checkUser.rows.length === 0) {
-  return res.json({ status: "not_registered" });
-}
-    
- // 🚨 Detect ANY call between these two users
-const pairCheck = await pg.query(`
+    if (checkUser.rows.length === 0) {
+      return res.json({ status: "not_registered" });
+    }
+
+    // 🚨 Detect ANY call between these two users
+    const pairCheck = await pg.query(`
 SELECT 1
 FROM active_calls
 WHERE
@@ -1125,14 +1125,14 @@ WHERE
 )
 AND status IN ('INITIATED','RINGING','ANSWERED')
 LIMIT 1
-`,[fromDigits,toDigits]);
+`, [fromDigits, toDigits]);
 
-if (pairCheck.rows.length > 0) {
+    if (pairCheck.rows.length > 0) {
 
-  console.log(`⚠️ CROSS CALL DETECTED`);
+      console.log(`⚠️ CROSS CALL DETECTED`);
 
-  // 🔥 find existing active call
-  const active = await pg.query(`
+      // 🔥 find existing active call
+      const active = await pg.query(`
     SELECT call_sid
     FROM active_calls
     WHERE
@@ -1142,168 +1142,168 @@ if (pairCheck.rows.length > 0) {
       (caller_identity=$2 AND callee_identity=$1)
     )
     LIMIT 1
-  `,[fromDigits,toDigits]);
+  `, [fromDigits, toDigits]);
 
-  if (active.rows.length) {
+      if (active.rows.length) {
 
-    const sid = active.rows[0].call_sid;
+        const sid = active.rows[0].call_sid;
 
-    try {
-      await twilioClient.calls(sid).update({ status: "completed" });
-      console.log("📴 Force ended existing call:", sid);
-    } catch(e) {}
-
-  }
-
-  const users = [fromDigits, toDigits];
-
-  for (const u of users) {
-
-    const { rows } = await pg.query(
-      "SELECT fcm_token FROM fcm_registry WHERE identity=$1 LIMIT 1",
-      [u]
-    );
-
-    if (rows.length) {
-
-      await sendFcmNotification(rows[0].fcm_token,{
-        type:"USER_BUSY"
-      });
-
-    }
-
-  }
-
-  return res.json({ status:"busy" });
-
-}
-
-if (fromDigits === toDigits) {
-  return res.json({ status:"busy" });
-}
-// (incoming call)
-const call = await twilioClient.calls.create({
-  to: `client:${toDigits}`,
-  from: TWILIO_VOICE_CALLER_ID,
-  url: `${BASE_URL}/twiml/voice?from=${toDigits}&to=${fromDigits}`,
-  customParameters: {
-    caller: fromDigits,
-  }
-});
-
-// 3️⃣ Register active call
-try {
-
-  await pg.query(`
-  INSERT INTO active_calls
-  (caller_identity, callee_identity, call_sid, status)
-  VALUES ($1,$2,$3,'INITIATED')
-  `,[fromDigits,toDigits,call.sid])
-
-} catch (err) {
-
-  // 🚨 CROSS CALL DETECTED BY DB
-  if (err.code === "23505") {
-
-    console.log("⚠️ DB blocked cross-call");
-
-    // kill the call Twilio just created
-    try {
-      await twilioClient.calls(call.sid).update({ status: "completed" });
-    } catch(e){}
-
-    const users = [fromDigits, toDigits];
-
-    for (const u of users) {
-
-      const { rows } = await pg.query(
-        "SELECT fcm_token FROM fcm_registry WHERE identity=$1 LIMIT 1",
-        [u]
-      );
-
-      if (rows.length) {
-
-        await sendFcmNotification(rows[0].fcm_token,{
-          type:"USER_BUSY"
-        });
+        try {
+          await twilioClient.calls(sid).update({ status: "completed" });
+          console.log("📴 Force ended existing call:", sid);
+        } catch (e) { }
 
       }
 
+      const users = [fromDigits, toDigits];
+
+      for (const u of users) {
+
+        const { rows } = await pg.query(
+          "SELECT fcm_token FROM fcm_registry WHERE identity=$1 LIMIT 1",
+          [u]
+        );
+
+        if (rows.length) {
+
+          await sendFcmNotification(rows[0].fcm_token, {
+            type: "USER_BUSY"
+          });
+
+        }
+
+      }
+
+      return res.json({ status: "busy" });
+
     }
 
-    return res.json({ status:"busy" });
+    if (fromDigits === toDigits) {
+      return res.json({ status: "busy" });
+    }
+    // (incoming call)
+    const call = await twilioClient.calls.create({
+      to: `client:${toDigits}`,
+      from: TWILIO_VOICE_CALLER_ID,
+      url: `${BASE_URL}/twiml/voice?from=${toDigits}&to=${fromDigits}`,
+      customParameters: {
+        caller: fromDigits,
+      }
+    });
 
-  }
+    // 3️⃣ Register active call
+    try {
 
-  throw err;
-}
+      await pg.query(`
+  INSERT INTO active_calls
+  (caller_identity, callee_identity, call_sid, status)
+  VALUES ($1,$2,$3,'INITIATED')
+  `, [fromDigits, toDigits, call.sid])
+
+    } catch (err) {
+
+      // 🚨 CROSS CALL DETECTED BY DB
+      if (err.code === "23505") {
+
+        console.log("⚠️ DB blocked cross-call");
+
+        // kill the call Twilio just created
+        try {
+          await twilioClient.calls(call.sid).update({ status: "completed" });
+        } catch (e) { }
+
+        const users = [fromDigits, toDigits];
+
+        for (const u of users) {
+
+          const { rows } = await pg.query(
+            "SELECT fcm_token FROM fcm_registry WHERE identity=$1 LIMIT 1",
+            [u]
+          );
+
+          if (rows.length) {
+
+            await sendFcmNotification(rows[0].fcm_token, {
+              type: "USER_BUSY"
+            });
+
+          }
+
+        }
+
+        return res.json({ status: "busy" });
+
+      }
+
+      throw err;
+    }
 
 
-// Auto end call if not answered in 30 seconds
-const timeoutId = setTimeout(async () => {
+    // Auto end call if not answered in 30 seconds
+    const timeoutId = setTimeout(async () => {
 
-  try {
+      try {
 
-    const result = await pg.query(
-      `SELECT call_sid,status
+        const result = await pg.query(
+          `SELECT call_sid,status
        FROM active_calls
        WHERE caller_identity=$1
        AND callee_identity=$2`,
-      [fromDigits, toDigits]
-    );
+          [fromDigits, toDigits]
+        );
 
-    if (!result.rows.length) return;
+        if (!result.rows.length) return;
 
-    const call = result.rows[0];
+        const call = result.rows[0];
 
-    // ✅ DO NOT END if call already answered
-    if (call.status === "ANSWERED") {
-      console.log("✅ Call already answered — skipping timeout");
-      return;
-    }
+        // ✅ DO NOT END if call already answered
+        if (call.status === "ANSWERED") {
+          console.log("✅ Call already answered — skipping timeout");
+          return;
+        }
 
-    const callSid = call.call_sid;
+        const callSid = call.call_sid;
 
-    console.log("⏰ Ending unanswered call:", callSid);
+        console.log("⏰ Ending unanswered call:", callSid);
 
-    try {
-      await twilioClient.calls(callSid).update({ status: "completed" });
-    } catch (err) {}
+        try {
+          await twilioClient.calls(callSid).update({ status: "completed" });
+        } catch (err) { }
 
-    await pg.query(
-      `DELETE FROM active_calls
+        await pg.query(
+          `DELETE FROM active_calls
        WHERE caller_identity=$1
        AND callee_identity=$2`,
-      [fromDigits, toDigits]
+          [fromDigits, toDigits]
+        );
+
+      } catch (err) {
+        console.error("timeout error:", err.message);
+      }
+
+    }, 30000);
+
+    // 🔥 SEND REAL CALLER TO CALLEE VIA FCM (SOURCE OF TRUTH)
+    const { rows } = await pg.query(
+      "SELECT fcm_token FROM fcm_registry WHERE identity=$1 OR phone_e164=$1 LIMIT 1",
+      [toDigits]
     );
 
-  } catch (err) {
-    console.error("timeout error:", err.message);
-  }
+    if (rows.length) {
+      await sendFcmNotification(rows[0].fcm_token, {
+        type: "VOICE_INVITE",
+        caller_display: `+${fromDigits}`, // 👈 REAL DIALED NUMBER
+        caller_id: fromDigits
+      });
+    }
 
-}, 30000);
-
-// 🔥 SEND REAL CALLER TO CALLEE VIA FCM (SOURCE OF TRUTH)
-const { rows } = await pg.query(
-  "SELECT fcm_token FROM fcm_registry WHERE identity=$1 OR phone_e164=$1 LIMIT 1",
-  [toDigits]
-);
-
-if (rows.length) {
-  await sendFcmNotification(rows[0].fcm_token, {
-    type: "VOICE_INVITE",
-    caller_display: `+${fromDigits}`, // 👈 REAL DIALED NUMBER
-    caller_id: fromDigits
-  });
-}
-
-// 🔥 Save call history (AUDIO)
-await pg.query(
-  `INSERT INTO call_history
+    // 🔥 Save call history (AUDIO)
+    await pg.query(
+      `INSERT INTO call_history
    (id, caller_identity, callee_identity, call_type)
    VALUES ($1,$2,$3,$4)`,
-  [uuidv4(), fromDigits, toDigits, "AUDIO"]
-);
+      [uuidv4(), fromDigits, toDigits, "AUDIO"]
+    );
 
     return res.json({ ok: true });
   } catch (err) {
@@ -1346,7 +1346,7 @@ UPDATE active_calls
 SET status='ANSWERED'
 WHERE caller_identity=$1
 AND callee_identity=$2
-`,[fromIdentity,toIdentity])
+`, [fromIdentity, toIdentity])
 
     console.log(`✅ Sent CALLEE_ANSWERED push to caller (${toIdentity})`);
     res.json({ ok: true });
@@ -1372,18 +1372,18 @@ app.post("/end-call", async (req, res) => {
     }
 
     await pg.query(
-  `
+      `
   DELETE FROM active_calls
   WHERE caller_identity = $1
      OR callee_identity = $1
      OR caller_identity = $2
      OR callee_identity = $2
   `,
-  [fromIdentity, toIdentity]
-);
+      [fromIdentity, toIdentity]
+    );
     // 🔥 Update call end time + duration
-await pg.query(
-  `
+    await pg.query(
+      `
   UPDATE call_history
   SET ended_at = NOW(),
       duration_seconds = EXTRACT(EPOCH FROM (NOW() - started_at))
@@ -1391,8 +1391,8 @@ await pg.query(
      OR  caller_identity=$2 AND callee_identity=$1)
   AND ended_at IS NULL
   `,
-  [fromIdentity, toIdentity]
-);
+      [fromIdentity, toIdentity]
+    );
     recentEndCalls.set(key, now);
 
     console.log(`📴 Call ended by ${fromIdentity} ➡ notifying ${toIdentity}`);
@@ -1414,7 +1414,7 @@ await pg.query(
     });
 
     console.log(`✅ Sent END_CALL push to ${toIdentity}`);
-   return res.json({ ok: true });
+    return res.json({ ok: true });
   } catch (err) {
     console.error("❌ /end-call error:", err.message);
     res.status(500).json({ ok: false, error: err.message });
@@ -1570,7 +1570,7 @@ function enqueueTTS(payload) {
 
   const next = prev
     .then(() => handleTranslationAndTTS(payload))
-    .catch(() => {}); // never break chain
+    .catch(() => { }); // never break chain
 
   ttsQueueByUser.set(fromId, next);
   return next;
@@ -1578,57 +1578,57 @@ function enqueueTTS(payload) {
 
 
 async function handleTranslationAndTTS({ transcript, fromId, toId, targetLang }) {
- const targetStream = streamMap.get(toId);
-const gender = targetStream?.listenGender || "female";
+  const targetStream = streamMap.get(toId);
+  const gender = targetStream?.listenGender || "female";
 
-if (!targetStream || targetStream.ws.readyState !== WebSocket.OPEN) {
-  console.warn(`⚠️ Target stream not ready | ${fromId} → ${toId}`);
-  return;
-}
+  if (!targetStream || targetStream.ws.readyState !== WebSocket.OPEN) {
+    console.warn(`⚠️ Target stream not ready | ${fromId} → ${toId}`);
+    return;
+  }
 
 
 
   console.log(`🔁 TRANSLATE | ${fromId} → ${toId} | "${transcript}"`);
 
-const translateTo = targetLang;
-// 1️⃣ Translate to listener language
-let translatedText = transcript;
-try {
-  const [translation] = await gTranslate.translate(transcript, targetLang);
-  translatedText = translation;
-} catch (err) {
-  console.error("❌ Translate error:", err.message);
-}
+  const translateTo = targetLang;
+  // 1️⃣ Translate to listener language
+  let translatedText = transcript;
+  try {
+    const [translation] = await gTranslate.translate(transcript, targetLang);
+    translatedText = translation;
+  } catch (err) {
+    console.error("❌ Translate error:", err.message);
+  }
 
-// 2️⃣ Translate to English (ALWAYS)
-let englishText = transcript;
-try {
-  const [englishTranslation] = await gTranslate.translate(transcript, "en");
-  englishText = englishTranslation;
-} catch (err) {
-  console.error("❌ English translate error:", err.message);
-}
+  // 2️⃣ Translate to English (ALWAYS)
+  let englishText = transcript;
+  try {
+    const [englishTranslation] = await gTranslate.translate(transcript, "en");
+    englishText = englishTranslation;
+  } catch (err) {
+    console.error("❌ English translate error:", err.message);
+  }
 
   console.log(`📝 TRANSLATED | ${fromId} → ${toId} | "${translatedText}"`);
-await sendLiveCaption(fromId, toId, transcript, translatedText, englishText);
+  await sendLiveCaption(fromId, toId, transcript, translatedText, englishText);
 
 
 
- const ttsPromise = ttsClient.synthesizeSpeech({
-  input: { text: translatedText },
- voice: {
-  languageCode: TTS_LANG_MAP[translateTo] || "en-IN",
-  ssmlGender: gender === "male" ? "MALE" : "FEMALE"
-},
+  const ttsPromise = ttsClient.synthesizeSpeech({
+    input: { text: translatedText },
+    voice: {
+      languageCode: TTS_LANG_MAP[translateTo] || "en-IN",
+      ssmlGender: gender === "male" ? "MALE" : "FEMALE"
+    },
 
 
-  audioConfig: {
-    audioEncoding: "LINEAR16",
-    sampleRateHertz: 8000
-  }
-});
+    audioConfig: {
+      audioEncoding: "LINEAR16",
+      sampleRateHertz: 8000
+    }
+  });
 
-const [ttsResponse] = await ttsPromise;
+  const [ttsResponse] = await ttsPromise;
 
 
   const pcmBuffer = Buffer.from(ttsResponse.audioContent, "base64");
@@ -1645,8 +1645,8 @@ const [ttsResponse] = await ttsPromise;
   }
 
   console.log(
-  `🔊 AUDIO DELIVERED | speaker=${fromId} | listener=${toId} | lang=${translateTo}`
-);
+    `🔊 AUDIO DELIVERED | speaker=${fromId} | listener=${toId} | lang=${translateTo}`
+  );
 
 }
 
@@ -1661,13 +1661,13 @@ async function sendLiveCaption(fromId, toId, original, translated, english) {
     );
 
     if (rows.length && rows[0].fcm_token) {
-    await sendFcmNotification(rows[0].fcm_token, {
-  type: "LIVE_CAPTION",
-  sender: fromId,
-  original,
-  translated,
-  english
-});
+      await sendFcmNotification(rows[0].fcm_token, {
+        type: "LIVE_CAPTION",
+        sender: fromId,
+        original,
+        translated,
+        english
+      });
 
     }
   }
@@ -1676,281 +1676,317 @@ async function sendLiveCaption(fromId, toId, original, translated, english) {
 
 
 wss.on("connection", async (ws, req) => {
-let streamActive = true;
+  let streamActive = true;
 
   let recognizeStream = null;
 
-let silenceChecker = null;
+
+  let silenceChecker = null;
 
 
-let lastSpeechTime = Date.now();
-let currentUtterance = "";
-let lastCommittedFullText = "";
-
-
-
-let lastUtteranceChangeTime = Date.now();
-
-
-let speakLang = "en";   // 🔥 DEFAULT
-let listenLang = "en";
-let SILENCE_FLUSH_MS = 900;
+  let lastSpeechTime = Date.now();
+  let currentUtterance = "";
+  let lastCommittedFullText = "";
 
 
 
- let fromId = null;
-let toId = null;
+  let lastUtteranceChangeTime = Date.now();
+
+
+  let speakLang = "en";   // 🔥 DEFAULT
+  let listenLang = "en";
+  let SILENCE_FLUSH_MS = 900;
 
 
 
- console.log("🎧 Twilio Media Stream connected");
+  let fromId = null;
+  let toId = null;
+
+
+
+  console.log("🎧 Twilio Media Stream connected");
 
 
 
 
   // Twilio -> Deepgram audio forward
   ws.on("message", async (msg) => {
-  try {
-    const data = JSON.parse(msg);
+    try {
+      const data = JSON.parse(msg);
 
- 
-if (data.event === "start") {
-  const params = data.start?.customParameters || {};
 
-  fromId = params.from;
-  toId = params.to;
+      if (data.event === "start") {
+        const params = data.start?.customParameters || {};
 
-  // 🔥 Mark call as ANSWERED when media stream starts
-try {
+        fromId = params.from;
+        toId = params.to;
 
-  await pg.query(`
+        // 🔥 Mark call as ANSWERED when media stream starts
+        try {
+
+          await pg.query(`
     UPDATE active_calls
     SET status='ANSWERED'
     WHERE
       (caller_identity=$1 AND callee_identity=$2)
       OR
       (caller_identity=$2 AND callee_identity=$1)
-  `,[fromId,toId]);
+  `, [fromId, toId]);
 
-  console.log("✅ Call marked ANSWERED via media stream");
+          console.log("✅ Call marked ANSWERED via media stream");
 
-} catch(e) {
-  console.log("ANSWERED update error:", e.message);
-}
+        } catch (e) {
+          console.log("ANSWERED update error:", e.message);
+        }
 
-  speakLang = params.speakLang || "en";   // 🔥 ASSIGN (not const)
-  listenLang = params.listenLang || "en";
+        speakLang = params.speakLang || "en";   // 🔥 ASSIGN (not const)
+        listenLang = params.listenLang || "en";
 
-  let speakGender = params.speakGender || "female";
-let listenGender = params.listenGender || "female";
+        let speakGender = params.speakGender || "female";
+        let listenGender = params.listenGender || "female";
 
-  SILENCE_FLUSH_MS = speakLang === "te" ? 700 : 900;
+        SILENCE_FLUSH_MS = speakLang === "te" ? 700 : 900;
 
-  console.log(
-    `🎯 STREAM START | ${fromId} → ${toId} | speak=${speakLang} listen=${listenLang}`
-  );
-
-
-
-if (!fromId || !toId) {
-  ws.close();
-  return;
-}
-
-recognizeStream = speechClient.streamingRecognize({
-  config: {
-    encoding: "MULAW",
-    sampleRateHertz: 8000,
-
-languageCode: STT_LANG_MAP[speakLang] || "en-IN",
-
-    enableAutomaticPunctuation: false,
-     model: "telephony",
-      useEnhanced: true,
-  },
-  interimResults: true,
-})
+        console.log(
+          `🎯 STREAM START | ${fromId} → ${toId} | speak=${speakLang} listen=${listenLang}`
+        );
 
 
-.on("data", async (data) => {
-  if (!streamActive) return;
 
-  const result = data.results?.[0];
-  if (!result) return;
+        if (!fromId || !toId) {
+          ws.close();
+          return;
+        }
 
-  const transcript = result.alternatives?.[0]?.transcript?.trim();
-  if (!transcript) return;
+        recognizeStream = speechClient.streamingRecognize({
+          config: {
+            encoding: "MULAW",
+            sampleRateHertz: 8000,
 
-  lastSpeechTime = Date.now();
+            languageCode: STT_LANG_MAP[speakLang] || "en-IN",
 
-  if (transcript !== currentUtterance) {
-    currentUtterance = transcript;
-    lastUtteranceChangeTime = Date.now();
-  }
-})
+            enableAutomaticPunctuation: false,
+            model: "telephony",
+            useEnhanced: true,
+          },
+          interimResults: true,
+        })
 
-.on("error", (err) => {
-  console.warn("⚠️ STT reset:", err.message);
 
-  try {
-    recognizeStream?.destroy();
-  } catch {}
+          .on("data", async (data) => {
+            if (!streamActive) return;
 
- recognizeStream = speechClient.streamingRecognize({
-  config: {
-    encoding: "MULAW",
-    sampleRateHertz: 8000,
-    languageCode: STT_LANG_MAP[speakLang] || "en-IN",
-    enableAutomaticPunctuation: false,
-    model: "telephony",
-    useEnhanced: true,
-  },
-  interimResults: true,
-})
+            const result = data.results?.[0];
+            if (!result) return;
 
-  .on("data", recognizeStream.listeners("data")[0])
-  .on("error", () => {});
-});
+            const transcript = result.alternatives?.[0]?.transcript?.trim();
+            if (!transcript) return;
 
-silenceChecker = setInterval(async () => {
-  const now = Date.now();
+            lastSpeechTime = Date.now();
 
-  if (
-    currentUtterance &&
-    now - lastSpeechTime > SILENCE_FLUSH_MS &&
-   now - lastUtteranceChangeTime > (speakLang === "te" ? 300 : 400)
+            if (transcript !== currentUtterance) {
+              currentUtterance = transcript;
+              lastUtteranceChangeTime = Date.now();
+            }
+          })
 
-  ) {
-   let fullText = currentUtterance.trim();
+          .on("error", (err) => {
+            console.warn("⚠️ STT reset:", err.message);
 
-// 🚫 DROP SUSPICIOUS LARGE JUMPS (TELUGU SAFETY)
-if (fullText.length > 120 && fullText.split(" ").length > 8) {
-  currentUtterance = "";
-  return;
-}
+            try {
+              recognizeStream?.destroy();
+            } catch { }
 
-    if (!fullText) return;
+            recognizeStream = speechClient.streamingRecognize({
+              config: {
+                encoding: "MULAW",
+                sampleRateHertz: 8000,
+                languageCode: STT_LANG_MAP[speakLang] || "en-IN",
+                enableAutomaticPunctuation: false,
+                model: "telephony",
+                useEnhanced: true,
+              },
+              interimResults: true,
+            })
 
-    // 🧠 DELTA EXTRACTION (TELUGU FIX)
-    let deltaText = fullText;
+              .on("data", async (data) => {
+                if (!streamActive) return;
 
-    if (lastCommittedFullText && fullText.startsWith(lastCommittedFullText)) {
-      deltaText = fullText.slice(lastCommittedFullText.length).trim();
+                const result = data.results?.[0];
+                if (!result) return;
+
+                const transcript = result.alternatives?.[0]?.transcript?.trim();
+                if (!transcript) return;
+
+                lastSpeechTime = Date.now();
+
+                if (transcript !== currentUtterance) {
+                  currentUtterance = transcript;
+                  lastUtteranceChangeTime = Date.now();
+                }
+              })
+
+              .on("error", (e) => {
+                console.warn("⚠️ STT inner error:", e.message);
+              });
+          });
+
+        silenceChecker = setInterval(async () => {
+          const now = Date.now();
+
+          if (
+            currentUtterance &&
+            now - lastSpeechTime > SILENCE_FLUSH_MS &&
+            now - lastUtteranceChangeTime > (speakLang === "te" ? 300 : 400)
+
+          ) {
+            let fullText = currentUtterance.trim();
+
+            // 🚫 DROP SUSPICIOUS LARGE JUMPS (TELUGU SAFETY)
+            if (fullText.length > 120 && fullText.split(" ").length > 8) {
+              currentUtterance = "";
+              return;
+            }
+
+            if (!fullText) return;
+
+            // 🧠 DELTA EXTRACTION (TELUGU FIX)
+            let deltaText = fullText;
+
+            if (lastCommittedFullText && fullText.startsWith(lastCommittedFullText)) {
+              deltaText = fullText.slice(lastCommittedFullText.length).trim();
+            }
+
+            // Nothing new → do nothing
+            if (!deltaText) {
+              currentUtterance = "";
+              return;
+            }
+
+            console.log(`🗣 STT COMMIT | ${fromId} → ${toId} | "${deltaText}"`);
+
+            lastCommittedFullText = fullText;
+            currentUtterance = "";
+
+            // 🔥 FORCE STT CONTEXT RESET (TELUGU FIX)
+            try {
+              recognizeStream.end();
+            } catch { }
+
+            recognizeStream = speechClient.streamingRecognize({
+              config: {
+                encoding: "MULAW",
+                sampleRateHertz: 8000,
+                languageCode: STT_LANG_MAP[speakLang] || "en-IN",
+                enableAutomaticPunctuation: false,
+                model: "telephony",
+                useEnhanced: true,
+              },
+              interimResults: true,
+            })
+              .on("data", async (data) => {
+                if (!streamActive) return;
+
+                const result = data.results?.[0];
+                if (!result) return;
+
+                const transcript = result.alternatives?.[0]?.transcript?.trim();
+                if (!transcript) return;
+
+                lastSpeechTime = Date.now();
+
+                if (transcript !== currentUtterance) {
+                  currentUtterance = transcript;
+                  lastUtteranceChangeTime = Date.now();
+                }
+              })
+              .on("error", (e) => {
+                console.warn("⚠️ STT reset:", e.message);
+              });
+
+
+            await enqueueTTS({
+              transcript: deltaText,
+              fromId,
+              toId,
+              targetLang: listenLang
+            });
+          }
+        }, 150);
+
+
+
+        streamMap.set(fromId, {
+          ws,
+          streamSid: data.streamSid,
+          fromId,
+          toId,
+          speakLang,
+          listenLang,
+          speakGender,
+          listenGender,
+          lastSeen: Date.now()
+        });
+
+
+        return;
+
+
+      }
+
+      if (data.event === "media") {
+        if (!fromId || !toId) return;
+
+        // 🚫 Ignore injected audio (prevents feedback)
+        if (data.media.track === "outbound") return;
+
+        const audio = Buffer.from(data.media.payload, "base64");
+
+        if (recognizeStream && !recognizeStream.destroyed) {
+          recognizeStream.write(audio);
+        }
+
+        return;
+
+      }
+
+
+      if (data.event === "stop") {
+        streamActive = false;
+
+        if (recognizeStream) {
+          recognizeStream.end();
+          recognizeStream = null;
+        }
+
+        console.log("🛑 Twilio stream stopped");
+        return;
+      }
+
+    } catch (err) {
+      console.error("❌ WS parse error:", err);
+    }
+  });
+
+
+  ws.on("close", () => {
+    if (fromId && streamMap.get(fromId)?.ws === ws) {
+      streamMap.delete(fromId);
     }
 
-    // Nothing new → do nothing
-    if (!deltaText) {
-      currentUtterance = "";
-      return;
+    clearInterval(silenceChecker);
+
+
+    if (recognizeStream) {
+      recognizeStream.destroy();
+      recognizeStream = null;
     }
+    console.log(`🔌 STREAM CLOSED | ${fromId} → ${toId}`);
 
-    console.log(`🗣 STT COMMIT | ${fromId} → ${toId} | "${deltaText}"`);
-
-    lastCommittedFullText = fullText;
-    currentUtterance = "";
-
-    // 🔥 FORCE STT CONTEXT RESET (TELUGU FIX)
-try {
-  recognizeStream.end();
-} catch {}
-
-recognizeStream = speechClient.streamingRecognize({
-  config: {
-    encoding: "MULAW",
-    sampleRateHertz: 8000,
-    languageCode: STT_LANG_MAP[speakLang] || "en-IN",
-    enableAutomaticPunctuation: false,
-    model: "telephony",
-    useEnhanced: true,
-  },
-  interimResults: true,
-})
-.on("data", recognizeStream.listeners("data")[0])
-.on("error", () => {});
+    console.log("🔌 Twilio WebSocket closed for", fromId);
 
 
-    await enqueueTTS({
-      transcript: deltaText,
-      fromId,
-      toId,
-      targetLang: listenLang
-    });
-  }
-}, 150);
-
-
-
-streamMap.set(fromId, {
-  ws,
-  streamSid: data.streamSid,
-  fromId,
-  toId,
-  speakLang,
-  listenLang,
-  speakGender,
-  listenGender,
-  lastSeen: Date.now()
-});
-
-
-return;
-
-
-}
-
-if (data.event === "media") {
-  if (!fromId || !toId) return;
-
-// 🚫 Ignore injected audio (prevents feedback)
-if (data.media.track === "outbound") return;
-
-const audio = Buffer.from(data.media.payload, "base64");
-
-if (recognizeStream && !recognizeStream.destroyed) {
-  recognizeStream.write(audio);
-}
-
-return;
-
-}
-
-  
-   if (data.event === "stop") {
-  streamActive = false;
-
-  if (recognizeStream) {
-    recognizeStream.end();
-    recognizeStream = null;
-  }
-
-  console.log("🛑 Twilio stream stopped");
-  return;
-}
-
-  } catch (err) {
-    console.error("❌ WS parse error:", err);
-  }
-});
-
-
- ws.on("close", () => {
-  if (fromId && streamMap.get(fromId)?.ws === ws) {
-  streamMap.delete(fromId);
-}
-
-clearInterval(silenceChecker);
-
-
-if (recognizeStream) {
-  recognizeStream.destroy();
-  recognizeStream = null;
-}
-console.log(`🔌 STREAM CLOSED | ${fromId} → ${toId}`);
-
-  console.log("🔌 Twilio WebSocket closed for", fromId);
- 
- 
-});
+  });
 
 
   ws.on("error", (err) => console.error("❌ Twilio WS Error:", err));
