@@ -29,11 +29,33 @@ const fetch = (...args) =>
 
 
 // === MediaStreams: WebSocket ===
+// === Google Cloud Setup ===
+const speech = require("@google-cloud/speech");
+const { Translate } = require('@google-cloud/translate').v2;
+const textToSpeech = require('@google-cloud/text-to-speech');
+const { GoogleAuth } = require("google-auth-library");
+
+let serviceAccount;
+if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+  try {
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+  } catch (e) {
+    console.error("❌ Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON env var");
+    serviceAccount = require(process.env.GOOGLE_APPLICATION_CREDENTIALS || "./firebase-service-account.json");
+  }
+} else {
+  serviceAccount = require(process.env.GOOGLE_APPLICATION_CREDENTIALS || "./firebase-service-account.json");
+}
+
+const clientConfig = { credentials: serviceAccount };
+
+const speechClient = new speech.SpeechClient(clientConfig);
+const gTranslate = new Translate(clientConfig);
+const ttsClient = new textToSpeech.TextToSpeechClient(clientConfig);
+
+// === MediaStreams: WebSocket ===
 const http = require("http");
 const WebSocket = require("ws");
-
-const speech = require("@google-cloud/speech");
-const speechClient = new speech.SpeechClient();
 
 // ================= LANGUAGE MAPS =================
 
@@ -123,12 +145,7 @@ function pcm16ToMulawBase64(pcm16Buffer) {
 
 
 
-const { Translate } = require('@google-cloud/translate').v2;
-const textToSpeech = require('@google-cloud/text-to-speech');
-
-// create clients (one-time)
-const gTranslate = new Translate();
-const ttsClient = new textToSpeech.TextToSpeechClient();
+// Clients already initialized above
 
 
 
@@ -156,20 +173,6 @@ const TWILIO_PUSH_CREDENTIAL_SID = process.env.TWILIO_PUSH_CREDENTIAL_SID;
 
 
 const axios = require("axios");
-
-// ✅ Firebase Access Token Helper
-const { GoogleAuth } = require("google-auth-library");
-let serviceAccount;
-if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
-  try {
-    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
-  } catch (e) {
-    console.error("❌ Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON env var");
-    serviceAccount = require(process.env.GOOGLE_APPLICATION_CREDENTIALS || "./firebase-service-account.json");
-  }
-} else {
-  serviceAccount = require(process.env.GOOGLE_APPLICATION_CREDENTIALS || "./firebase-service-account.json");
-}
 
 admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 const googleAuth = new GoogleAuth({
