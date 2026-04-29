@@ -317,6 +317,10 @@ function canonicalizePhoneAndIdentity(phoneOrIdentity) {
 const otpLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
+  keyGenerator: (req) => {
+    // Azure App Service includes the port in the IP, which breaks express-rate-limit
+    return (req.ip || req.headers['x-forwarded-for'] || "unknown").split(',')[0].replace(/:\d+[^:]*$/, '').trim();
+  }
 });
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
@@ -1734,23 +1738,8 @@ wss.on("connection", async (ws, req) => {
         fromId = params.from;
         toId = params.to;
 
-        // 🔥 Mark call as ANSWERED when media stream starts
-        try {
+        // (Removed premature ANSWERED status update. The /callee-answered endpoint handles this.)
 
-          await pg.query(`
-    UPDATE active_calls
-    SET status='ANSWERED'
-    WHERE
-      (caller_identity=$1 AND callee_identity=$2)
-      OR
-      (caller_identity=$2 AND callee_identity=$1)
-  `, [fromId, toId]);
-
-          console.log("✅ Call marked ANSWERED via media stream");
-
-        } catch (e) {
-          console.log("ANSWERED update error:", e.message);
-        }
 
         speakLang = params.speakLang || "en";   // 🔥 ASSIGN (not const)
         listenLang = params.listenLang || "en";
