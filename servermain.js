@@ -317,9 +317,11 @@ function canonicalizePhoneAndIdentity(phoneOrIdentity) {
 const otpLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
+  validate: false,
   keyGenerator: (req) => {
     // Azure App Service includes the port in the IP, which breaks express-rate-limit
-    return (req.ip || req.headers['x-forwarded-for'] || "unknown").split(',')[0].replace(/:\d+[^:]*$/, '').trim();
+    const rawIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown';
+    return rawIp.split(',')[0].replace(/:\d+[^:]*$/, '').trim();
   }
 });
 
