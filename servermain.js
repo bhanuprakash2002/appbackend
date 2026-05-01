@@ -1642,7 +1642,8 @@ async function handleTranslationAndTTS({ transcript, fromId, toId, targetLang })
     audioConfig: {
       audioEncoding: "MULAW",
       sampleRateHertz: 8000,
-      volumeGainDb: 10.0
+      volumeGainDb: 16.0,
+      effectsProfileId: ["telephony-class-application"]
     }
   });
 
@@ -1673,7 +1674,6 @@ async function handleTranslationAndTTS({ transcript, fromId, toId, targetLang })
       streamSid: targetStream.streamSid,
       media: { payload: mulawBase64 }
     }));
-    await new Promise(r => setTimeout(r, 20));
   }
 
   console.log(
