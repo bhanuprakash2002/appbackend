@@ -1650,8 +1650,8 @@ async function handleTranslationAndTTS({ transcript, fromId, toId, targetLang })
   const [ttsResponse] = await ttsPromise;
 
 
-  const pcmBuffer = Buffer.from(ttsResponse.audioContent, "base64");
-  const chunks = chunkPcm(pcmBuffer, 160);
+  const pcmBuffer = Buffer.from(ttsResponse.audioContent, "base64").slice(44); // Skip 44-byte WAV header
+  const chunks = chunkPcm(pcmBuffer, 320); // 320 bytes PCM = 160 bytes MuLaw (20ms)
 
   for (const chunk of chunks) {
     const mulawBase64 = pcm16ToMulawBase64(chunk);
@@ -1660,7 +1660,7 @@ async function handleTranslationAndTTS({ transcript, fromId, toId, targetLang })
       streamSid: targetStream.streamSid,
       media: { payload: mulawBase64 }
     }));
-    await new Promise(r => setTimeout(r, 10));
+    await new Promise(r => setTimeout(r, 20));
   }
 
   console.log(
@@ -1740,7 +1740,13 @@ wss.on("connection", async (ws, req) => {
         fromId = params.from;
         toId = params.to;
 
-        // (Removed premature ANSWERED status update. The /callee-answered endpoint handles this.)
+        // Automatically mark as ANSWERED when Twilio Media Stream connects
+        pg.query(`
+          UPDATE active_calls
+          SET status='ANSWERED'
+          WHERE (caller_identity=$1 AND callee_identity=$2)
+             OR (caller_identity=$2 AND callee_identity=$1)
+        `, [fromId, toId]).catch(e => console.error("Update answered err:", e));
 
 
         speakLang = params.speakLang || "en";   // 🔥 ASSIGN (not const)
