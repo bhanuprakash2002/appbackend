@@ -51,7 +51,7 @@ const clientConfig = { credentials: serviceAccount };
 
 const speechClient = new speech.SpeechClient(clientConfig);
 const gTranslate = new Translate(clientConfig);
-const ttsClient = new textToSpeech.TextToSpeechClient({ ...clientConfig, fallback: true });
+const ttsClient = new textToSpeech.TextToSpeechClient({ credentials: serviceAccount });
 
 // === MediaStreams: WebSocket ===
 const http = require("http");
