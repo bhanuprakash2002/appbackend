@@ -1651,17 +1651,14 @@ async function handleTranslationAndTTS({ transcript, fromId, toId, targetLang })
 
 
   const pcmBuffer = Buffer.from(ttsResponse.audioContent, "base64").slice(44); // Skip 44-byte WAV header
-  const chunks = chunkPcm(pcmBuffer, 320); // 320 bytes PCM = 160 bytes MuLaw (20ms)
-
-  for (const chunk of chunks) {
-    const mulawBase64 = pcm16ToMulawBase64(chunk);
-    targetStream.ws.send(JSON.stringify({
-      event: "media",
-      streamSid: targetStream.streamSid,
-      media: { payload: mulawBase64 }
-    }));
-    await new Promise(r => setTimeout(r, 20));
-  }
+  
+  // Send the entire audio payload at once to avoid Azure reverse proxy buffering issues
+  const mulawBase64 = pcm16ToMulawBase64(pcmBuffer);
+  targetStream.ws.send(JSON.stringify({
+    event: "media",
+    streamSid: targetStream.streamSid,
+    media: { payload: mulawBase64 }
+  }));
 
   console.log(
     `🔊 AUDIO DELIVERED | speaker=${fromId} | listener=${toId} | lang=${translateTo}`
