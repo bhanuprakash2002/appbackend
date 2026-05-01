@@ -1641,7 +1641,8 @@ async function handleTranslationAndTTS({ transcript, fromId, toId, targetLang })
     },
     audioConfig: {
       audioEncoding: "MULAW",
-      sampleRateHertz: 8000
+      sampleRateHertz: 8000,
+      volumeGainDb: 10.0
     }
   });
 
