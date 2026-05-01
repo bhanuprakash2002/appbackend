@@ -1589,7 +1589,7 @@ function enqueueTTS(payload) {
 
   const next = prev
     .then(() => handleTranslationAndTTS(payload))
-    .catch(() => { }); // never break chain
+    .catch((err) => { console.error("❌ TTS Pipeline Error:", err); }); // never break chain
 
   ttsQueueByUser.set(fromId, next);
   return next;
@@ -1639,29 +1639,44 @@ async function handleTranslationAndTTS({ transcript, fromId, toId, targetLang })
       languageCode: TTS_LANG_MAP[translateTo] || "en-IN",
       ssmlGender: gender === "male" ? "MALE" : "FEMALE"
     },
-
-
     audioConfig: {
-      audioEncoding: "LINEAR16",
+      audioEncoding: "MULAW",
       sampleRateHertz: 8000
     }
   });
 
   const [ttsResponse] = await ttsPromise;
-
-
-  const pcmBuffer = Buffer.from(ttsResponse.audioContent, "base64").slice(44); // Skip 44-byte WAV header
   
-  // Send the entire audio payload at once to avoid Azure reverse proxy buffering issues
-  const mulawBase64 = pcm16ToMulawBase64(pcmBuffer);
-  targetStream.ws.send(JSON.stringify({
-    event: "media",
-    streamSid: targetStream.streamSid,
-    media: { payload: mulawBase64 }
-  }));
+  const buf = Buffer.from(ttsResponse.audioContent);
+  let audioData = buf;
+  
+  // Extract MULAW data chunk from WAV header
+  let offset = 12; // skip RIFF header
+  while (offset < buf.length) {
+    const chunkId = buf.toString('utf8', offset, offset + 4);
+    const chunkSize = buf.readUInt32LE(offset + 4);
+    if (chunkId === 'data') {
+      audioData = buf.slice(offset + 8, offset + 8 + chunkSize);
+      break;
+    }
+    offset += 8 + chunkSize;
+  }
+
+  // Twilio prefers exact 160-byte payload chunks (20ms) for MuLaw
+  const chunks = chunkPcm(audioData, 160);
+
+  for (const chunk of chunks) {
+    const mulawBase64 = chunk.toString("base64");
+    targetStream.ws.send(JSON.stringify({
+      event: "media",
+      streamSid: targetStream.streamSid,
+      media: { payload: mulawBase64 }
+    }));
+    await new Promise(r => setTimeout(r, 20));
+  }
 
   console.log(
-    `🔊 AUDIO DELIVERED | speaker=${fromId} | listener=${toId} | lang=${translateTo}`
+    `🔊 AUDIO DELIVERED | speaker=${fromId} | listener=${toId} | lang=${translateTo} | chunks=${chunks.length}`
   );
 
 }
