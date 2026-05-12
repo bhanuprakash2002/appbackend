@@ -446,6 +446,91 @@ app.post("/auth/logout", async (req, res) => {
   res.json({ ok: true });
 });
 
+app.post("/delete-account", async (req, res) => {
+  try {
+
+    const { identity } = req.body;
+
+    if (!identity) {
+      return res.status(400).json({
+        ok: false,
+        error: "identity required"
+      });
+    }
+
+    const cleanIdentity = canonicalIdentity(identity);
+
+    console.log("🗑️ Deleting account:", cleanIdentity);
+
+    // delete sessions
+    await pg.query(
+      `DELETE FROM session
+       WHERE user_id IN (
+         SELECT id FROM app_user
+         WHERE phone_e164=$1
+       )`,
+      [`+${cleanIdentity}`]
+    );
+
+    // delete FCM registrations
+    await pg.query(
+      `DELETE FROM fcm_registry
+       WHERE identity=$1
+          OR phone_e164=$2`,
+      [cleanIdentity, `+${cleanIdentity}`]
+    );
+
+    // delete chat messages
+    await pg.query(
+      `DELETE FROM chat_messages
+   WHERE
+      REPLACE(from_identity, '+', '')=$1
+      OR
+      REPLACE(to_identity, '+', '')=$1`,
+      [cleanIdentity]
+    );
+
+    // delete call history
+    await pg.query(
+      `DELETE FROM call_history
+   WHERE
+      REPLACE(caller_identity, '+', '')=$1
+      OR
+      REPLACE(callee_identity, '+', '')=$1`,
+      [cleanIdentity]
+    );
+
+    // delete language preferences
+    await pg.query(
+      `DELETE FROM user_language_prefs
+       WHERE identity=$1`,
+      [cleanIdentity]
+    );
+
+    // delete user
+    await pg.query(
+      `DELETE FROM app_user
+       WHERE phone_e164=$1`,
+      [`+${cleanIdentity}`]
+    );
+
+    console.log("✅ Account deleted:", cleanIdentity);
+
+    res.json({
+      ok: true
+    });
+
+  } catch (err) {
+
+    console.error("❌ delete-account error:", err);
+
+    res.status(500).json({
+      ok: false,
+      error: err.message
+    });
+  }
+});
+
 
 // ================= CHAT SEND =================
 app.post("/chat/send", async (req, res) => {
@@ -1648,10 +1733,10 @@ async function handleTranslationAndTTS({ transcript, fromId, toId, targetLang })
   });
 
   const [ttsResponse] = await ttsPromise;
-  
+
   const buf = Buffer.from(ttsResponse.audioContent);
   let audioData = buf;
-  
+
   // Extract MULAW data chunk from WAV header
   let offset = 12; // skip RIFF header
   while (offset < buf.length) {
